@@ -7,7 +7,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "preinstall": "npx only-allow pnpm"
+    "preinstall": "npx only-allow pnpm",
+    "changeset": "changeset",
+    "version": "changeset version",
+    "changelog": "changeset"
   },
   "dependencies": {
     "react": "^19.0.0",
@@ -23,6 +26,7 @@
     "tailwindcss": "^4",
     "eslint": "^9",
     "eslint-config-next": "15.2.2",
-    "@eslint/eslintrc": "^3"
+    "@eslint/eslintrc": "^3",
+    "@changesets/cli": "^2.27.1"
   }
 }
