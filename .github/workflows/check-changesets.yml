@@ -1,0 +1,63 @@
+name: Check Changesets
+
+on:
+  pull_request:
+    branches:
+      - dev
+
+jobs:
+  check-changesets:
+    name: Check Changesets
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup PNPM
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+          run_install: false
+
+      - name: Get pnpm store directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v3
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install Dependencies
+        run: pnpm install
+
+      - name: Check for Changeset
+        run: |
+          if [ "${{ github.event.pull_request.base.ref }}" = "dev" ]; then
+            # Check if PR has a changeset (unless it's a PR created by the changesets action)
+            if echo "${{ github.event.pull_request.title }}" | grep -i "Version Packages" > /dev/null; then
+              echo "PR is a changeset version update. Skipping changeset check."
+              exit 0
+            fi
+            
+            # Check if there's a changeset file
+            git fetch origin dev --depth=1
+            ADDED_FILES=$(git diff --name-only origin/dev...HEAD | grep "^\.changeset/.*\.md$" | grep -v "^\.changeset/README.md$")
+            
+            if [ -z "$ADDED_FILES" ]; then
+              echo "ERROR: No changeset found in this PR."
+              echo "Please run 'pnpm changeset' to create a changeset describing your changes."
+              exit 1
+            fi
+          fi
