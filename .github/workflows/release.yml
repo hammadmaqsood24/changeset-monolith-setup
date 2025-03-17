@@ -1,0 +1,74 @@
+name: Create GitHub Release
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup PNPM
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+          run_install: false
+
+      - name: Install Dependencies
+        run: pnpm install
+
+      - name: Get Version
+        id: package-version
+        run: echo "::set-output name=version::$(node -p "require('./package.json').version")"
+
+      - name: Create GitHub Release
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+
+            // Get version from package.json
+            const packageJson = JSON.parse(fs.readFileSync('./package.json', 'utf8'));
+            const version = packageJson.version;
+
+            // Read CHANGELOG.md to extract release notes
+            let changelog = '';
+            if (fs.existsSync('./CHANGELOG.md')) {
+              const changelogContent = fs.readFileSync('./CHANGELOG.md', 'utf8');
+              
+              // Find the current version section in the changelog
+              const versionHeader = `## ${version}`;
+              const versionRegex = new RegExp(`${versionHeader}([^#]+)`, 'gm');
+              const match = versionRegex.exec(changelogContent);
+              
+              if (match && match[1]) {
+                changelog = match[1].trim();
+              }
+            }
+
+            // Create the release
+            const releaseResponse = await github.rest.repos.createRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: `v${version}`,
+              name: `Release v${version}`,
+              body: changelog || 'Release notes not found',
+              draft: false,
+              prerelease: false
+            });
+
+            console.log(`Created release: ${releaseResponse.data.html_url}`);
