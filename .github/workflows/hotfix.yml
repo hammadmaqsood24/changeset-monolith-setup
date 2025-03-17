@@ -1,0 +1,99 @@
+name: Process Hotfix
+
+on:
+  pull_request:
+    branches:
+      - main
+    types: [closed]
+
+jobs:
+  process-hotfix:
+    if: github.event.pull_request.merged == true && startsWith(github.head_ref, 'hotfix/')
+    name: Process Hotfix
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup PNPM
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+          run_install: false
+
+      - name: Install Dependencies
+        run: pnpm install
+
+      - name: Setup Git User
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Get Current Version
+        id: current-version
+        run: echo "::set-output name=version::$(node -p "require('./package.json').version")"
+
+      - name: Create Version
+        run: |
+          # For hotfixes, we'll create an automatic patch changeset and version
+          echo '{ "summary": "Hotfix applied directly to production" }' > .changeset/hotfix.json
+          node -e "
+            const fs = require('fs');
+            const path = require('path');
+            
+            const changesetDir = '.changeset';
+            const packageName = require('./package.json').name;
+            
+            // Create a random changeset ID
+            const changesetId = Math.random().toString(36).substring(2, 15);
+            const filename = path.join(changesetDir, changesetId + '.md');
+            
+            // Create the changeset content
+            const content = '---\n\"' + packageName + '\": patch\n---\n\nHotfix applied directly to production\n';
+            
+            fs.writeFileSync(filename, content);
+          "
+
+          pnpm changeset version
+
+      - name: Commit and push changes
+        run: |
+          if [[ -n $(git status --porcelain) ]]; then
+            git add .
+            git commit -m "chore: version packages for hotfix"
+            git push origin HEAD:main
+          else
+            echo "No changes to commit"
+          fi
+
+      - name: Create GitHub Release for Hotfix
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+
+            // Get new version from package.json after versioning
+            const packageJson = JSON.parse(fs.readFileSync('./package.json', 'utf8'));
+            const newVersion = packageJson.version;
+
+            // Create a release for the hotfix
+            const releaseResponse = await github.rest.repos.createRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: `v${newVersion}`,
+              name: `Hotfix v${newVersion}`,
+              body: 'This is a hotfix release applied directly to production.',
+              draft: false,
+              prerelease: false
+            });
+
+            console.log(`Created hotfix release: ${releaseResponse.data.html_url}`);
