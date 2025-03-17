@@ -15,17 +15,17 @@ When you make a change that needs to be documented in the changelog:
 
 1. Feature branches and fixes are merged into `dev` branch
 2. When code is merged to `dev`, changesets are used to version the package and update the changelog
-3. Code flows from `dev` → `staging` → `prod`
-4. When merged to `prod`, a GitHub release is automatically created with the changelog
-5. Hotfixes branch from `prod`, make changes, and merge back to `prod` directly
+3. Code flows from `dev` → `staging` → `main`
+4. When merged to `main`, a GitHub release is automatically created with the changelog
+5. Hotfixes branch from `main`, make changes, and merge back to `main` directly
 
 ## Hotfix Process
 
 For urgent fixes:
 
-1. Create a branch from `prod` named `hotfix/your-fix-name`
+1. Create a branch from `main` named `hotfix/your-fix-name`
 2. Make your changes
-3. When merged to `prod`, the workflow will:
+3. When merged to `main`, the workflow will:
    - Automatically create a changeset
    - Bump the version (patch)
    - Create a GitHub release

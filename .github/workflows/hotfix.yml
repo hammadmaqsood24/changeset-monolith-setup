@@ -3,7 +3,7 @@ name: Process Hotfix
 on:
   pull_request:
     branches:
-      - prod
+      - main
     types: [closed]
 
 jobs:
@@ -69,7 +69,7 @@ jobs:
           if [[ -n $(git status --porcelain) ]]; then
             git add .
             git commit -m "chore: version packages for hotfix"
-            git push origin HEAD:prod
+            git push origin HEAD:main
           else
             echo "No changes to commit"
           fi
